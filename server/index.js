@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { timingSafeEqual } from 'node:crypto';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,7 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '20kb' }));
 const eventClients = new Set();
 const smsAttempts = new Map();
+const pinFailures = new Map();
 
 app.get('/api/events', (req, res) => {
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
@@ -33,11 +35,19 @@ app.post('/api/alerts', (req, res) => {
 function getMsg91Config() {
   const authKey = process.env.MSG91_AUTH_KEY?.trim();
   const templateId = process.env.MSG91_TEMPLATE_ID?.trim();
+  const adminPin = process.env.SMS_ADMIN_PIN?.trim();
   const missing = [
     !authKey || /your_|placeholder|\.\.\./i.test(authKey) ? 'MSG91_AUTH_KEY' : null,
-    !templateId || /your_|placeholder|\.\.\./i.test(templateId) ? 'MSG91_TEMPLATE_ID' : null
+    !templateId || /your_|placeholder|\.\.\./i.test(templateId) ? 'MSG91_TEMPLATE_ID' : null,
+    !adminPin || adminPin.length < 8 ? 'SMS_ADMIN_PIN (use at least 8 characters)' : null
   ].filter(Boolean);
-  return { authKey, templateId, missing, mode: missing.length ? 'demo' : 'live' };
+  return { authKey, templateId, adminPin, missing, mode: missing.length ? 'demo' : 'live' };
+}
+
+function matchesAdminPin(provided, expected) {
+  const actual = Buffer.from(provided || '', 'utf8');
+  const secret = Buffer.from(expected || '', 'utf8');
+  return actual.length === secret.length && actual.length > 0 && timingSafeEqual(actual, secret);
 }
 
 app.get('/api/status', (_req, res) => {
@@ -55,16 +65,30 @@ function checkSmsRateLimit(ip, phone) {
   return true;
 }
 
+function allowPinAttempt(ip) {
+  const now = Date.now();
+  const recent = (pinFailures.get(ip) || []).filter(time => now - time < 15 * 60 * 1000);
+  if (recent.length >= 10) return false;
+  recent.push(now);
+  pinFailures.set(ip, recent);
+  return true;
+}
+
 app.post('/api/sms', async (req, res) => {
   const { phone } = req.body || {};
   if (typeof phone !== 'string' || !/^\+[1-9]\d{7,14}$/.test(phone)) {
     return res.status(400).json({ error: 'Enter a valid phone number in international format, for example +919876543210.' });
   }
-  const { authKey, templateId, missing, mode } = getMsg91Config();
+  const { authKey, templateId, adminPin, missing, mode } = getMsg91Config();
   if (missing.length) {
     return res.json({ mode: 'demo', message: `Demo SMS queued locally. Missing server settings: ${missing.join(', ')}.` });
   }
-  if (!checkSmsRateLimit(req.ip || 'unknown', phone)) {
+  const ip = req.ip || 'unknown';
+  if (!matchesAdminPin(req.get('x-sms-admin-pin'), adminPin)) {
+    if (!allowPinAttempt(ip)) return res.status(429).json({ error: 'Too many incorrect PIN attempts. Try again in 15 minutes.' });
+    return res.status(401).json({ error: 'Incorrect SMS admin PIN.' });
+  }
+  if (!checkSmsRateLimit(ip, phone)) {
     return res.status(429).json({ error: 'SMS test limit reached for this number. Try again in an hour.' });
   }
 
