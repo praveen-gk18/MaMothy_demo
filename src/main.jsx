@@ -16,10 +16,37 @@ const people = [
 ];
 
 function VillageMap({ running, alertLevel, setAlertLevel }) {
-  const [tick, setTick] = useState(0);
-  useEffect(() => { if (!running) return; const id = setInterval(() => setTick(t => t + 1), 1200); return () => clearInterval(id); }, [running]);
-  const x = 681 - (tick % 9) * 10;
-  const y = 184 + Math.sin(tick / 1.5) * 15;
+  const herdRef = React.useRef(null);
+  if (!herdRef.current) {
+    const startPoints = [[650,145],[720,190],[680,280],[550,300],[740,330]];
+    herdRef.current = startPoints.map(([x,y], index) => ({
+      id: index + 1, x, y, vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+      turns: 3 + Math.floor(Math.random() * 8), trail: [{x,y}]
+    }));
+  }
+  const [, renderMotion] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      herdRef.current = herdRef.current.map(animal => {
+        let {x,y,vx,vy,turns} = animal;
+        turns -= 1;
+        if (turns <= 0) {
+          const heading = Math.atan2(vy || 1, vx || 1) + (Math.random() - 0.5) * 1.6;
+          const speed = 2.2 + Math.random() * 2.8;
+          vx = Math.cos(heading) * speed; vy = Math.sin(heading) * speed;
+          turns = 4 + Math.floor(Math.random() * 10);
+        }
+        let nx = x + vx, ny = y + vy;
+        if (nx < 515 || nx > 778) { vx = -vx; nx = Math.max(515, Math.min(778, nx)); }
+        if (ny < 82 || ny > 390) { vy = -vy; ny = Math.max(82, Math.min(390, ny)); }
+        return {...animal, x:nx, y:ny, vx, vy, turns, trail:[...animal.trail,{x:nx,y:ny}].slice(-14)};
+      });
+      renderMotion(frame => frame + 1);
+    }, 500);
+    return () => clearInterval(id);
+  }, [running]);
+  const herd = herdRef.current;
   return <div className="map-wrap">
     <div className="map-toolbar"><div className="map-title"><span className="live-dot"/><span>LIVE SIMULATION</span><span className="map-time">09:42:16 IST</span></div><button className="icon-btn map-locate" aria-label="Recenter map"><LocateFixed size={16}/></button></div>
     <svg className="village-map" viewBox="0 0 820 460" role="img" aria-label="Illustrated village map showing forest, village and elephant activity">
@@ -42,15 +69,21 @@ function VillageMap({ running, alertLevel, setAlertLevel }) {
       <text x="657" y="45" className="map-region">EASTERN FOREST</text><text x="657" y="63" className="map-small">KALAKAD–MUNDANTHURAI BUFFER</text>
       <text x="222" y="185" className="map-region village-label">KAVERI VILLAGE</text><text x="222" y="201" className="map-small">RESIDENTIAL ZONE · 128 HOMES</text>
       <text x="72" y="44" className="map-small">NORTH FIELDS</text><text x="695" y="349" className="map-small">FOREST EDGE</text>
-      {/* movement trail */}
-      <path d="M706 145C680 160 705 183 681 195S656 226 650 244" fill="none" stroke="#e6a344" strokeWidth="3" strokeDasharray="5 6" strokeLinecap="round" opacity=".7"/>
-      <circle cx={x} cy={y} r="34" fill="#edac47" opacity=".14"/><circle cx={x} cy={y} r="25" fill="#edac47" opacity=".12" filter="url(#soft)"/>
-      <g transform={`translate(${x} ${y})`}><circle r="19" fill="#fff" stroke="#e5a441" strokeWidth="2.5"/><text textAnchor="middle" dominantBaseline="central" fontSize="21">🐘</text></g>
-      <g transform={`translate(${x+25} ${y-24})`}><rect width="74" height="22" rx="11" fill="#fff"/><circle cx="11" cy="11" r="4" fill="#e89d35"/><text x="21" y="15" className="elephant-tag">ELEPHANT</text></g>
+      {/* Five independent random-walk tracks; each continues from its current position. */}
+      {herd.map((elephant,index)=>{
+        const colors=['#e6a344','#dc8067','#6d94bc','#8b79aa','#4f9a75'];
+        const points=elephant.trail.map(point=>`${point.x},${point.y}`).join(' ');
+        return <g key={elephant.id} aria-label={`Simulated elephant ${elephant.id}`}>
+          <polyline points={points} fill="none" stroke={colors[index]} strokeWidth="2.2" strokeDasharray="4 5" strokeLinecap="round" opacity=".65"/>
+          <circle cx={elephant.x} cy={elephant.y} r="27" fill={colors[index]} opacity=".1"/>
+          <g transform={`translate(${elephant.x} ${elephant.y})`}><circle r="17" fill="#fff" stroke={colors[index]} strokeWidth="2.5"/><text textAnchor="middle" dominantBaseline="central" fontSize="18">🐘</text></g>
+          <g transform={`translate(${elephant.x+14} ${elephant.y-24})`}><rect width="23" height="16" rx="8" fill="#fff"/><text x="11.5" y="11.5" textAnchor="middle" className="elephant-tag">E{elephant.id}</text></g>
+        </g>;
+      })}
       {/* patrol */}<g transform="translate(349 265)"><circle r="13" fill="#fff" stroke="#5d89bb" strokeWidth="2"/><path d="M-4 3l4-8 4 8M-6 5h12" fill="none" stroke="#4f7ead" strokeWidth="1.8"/></g><text x="366" y="270" className="map-small">PATROL 02</text>
       {alertLevel && <g><circle cx="645" cy="220" r="45" fill="#e77b64" opacity=".12"/><circle cx="645" cy="220" r="30" fill="none" stroke="#dd765d" strokeWidth="2" strokeDasharray="5 5"/></g>}
     </svg>
-    <div className="map-legend"><span><i className="legend-dot elephant-dot"/>Elephant location</span><span><i className="legend-dot sensor-dot"/>Sensor</span><span><i className="legend-dot patrol-dot"/>Patrol unit</span><span><i className="legend-line"/>Village boundary</span></div>
+    <div className="map-legend"><span><i className="legend-dot elephant-dot"/>5 roaming elephants</span><span><i className="legend-dot sensor-dot"/>Sensor</span><span><i className="legend-dot patrol-dot"/>Patrol unit</span><span><i className="legend-line"/>Village boundary</span></div>
     <div className="map-footer"><span><Crosshair size={14}/> Last collar packet · 2 min ago</span><span>Map data is simulated for demo purposes</span></div>
   </div>
 }
@@ -64,11 +97,12 @@ function App() {
   const [smsState, setSmsState] = useState('');
   const [smsBusy, setSmsBusy] = useState(false);
   const [smsMode, setSmsMode] = useState('demo');
+  const [smsMissing, setSmsMissing] = useState([]);
   const [tab, setTab] = useState('overview');
   const [menuOpen, setMenuOpen] = useState(false);
   const [now, setNow] = useState(new Date());
   useEffect(() => { const i=setInterval(()=>setNow(new Date()),1000); return ()=>clearInterval(i); }, []);
-  useEffect(() => { fetch('/api/status').then(r=>r.json()).then(d=>setSmsMode(d.mode)).catch(()=>{}); }, []);
+  useEffect(() => { fetch('/api/status').then(r=>r.json()).then(d=>{setSmsMode(d.mode);setSmsMissing(d.missing||[])}).catch(()=>setSmsMissing(['API status unavailable'])); }, []);
   useEffect(() => {
     const events = new EventSource('/api/events');
     events.onmessage = event => {
@@ -101,7 +135,9 @@ function App() {
   async function sendSms(e) {
     e.preventDefault(); setSmsBusy(true); setSmsState('');
     try {
-      const normalizedPhone=`+91${phone.replace(/\D/g,'')}`;
+      const rawPhone=phone.trim();
+      const digits=rawPhone.replace(/\D/g,'');
+      const normalizedPhone=rawPhone.startsWith('+')?`+${digits}`:digits.startsWith('91')&&digits.length===12?`+${digits}`:`+91${digits.replace(/^0/,'')}`;
       const res=await fetch('/api/sms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:normalizedPhone,message:'MaMothy village safety alert: Elephant sighting near Kaveri east boundary. Please stay indoors and avoid the forest edge.'})});
       const data=await res.json(); if(!res.ok)throw new Error(data.error||'Unable to send SMS.');
       setSmsState(data.mode==='live'?'SMS sent successfully.':'Demo SMS queued — no message was sent to a mobile network.');
@@ -126,7 +162,7 @@ function App() {
         <div className="stats-grid">
           <div className="stat-card"><div className="stat-top"><span>COMMUNITY MEMBERS</span><div className="stat-icon purple"><Users size={17}/></div></div><div className="stat-value">128 <span className="stat-change">+4 this week</span></div><div className="stat-foot">Registered for safety alerts</div></div>
           <div className="stat-card"><div className="stat-top"><span>LORA GATEWAY</span><div className="stat-icon green"><Radio size={17}/></div></div><div className="stat-value">1<span className="stat-total"> / 1</span><span className="online-pill"><i/>Online</span></div><div className="stat-foot">Collar telemetry · 2 min ago</div></div>
-          <div className="stat-card"><div className="stat-top"><span>ELEPHANT ACTIVITY</span><div className="stat-icon amber"><Waves size={17}/></div></div><div className="stat-value">1 <span className="activity-status"><i/>Near boundary</span></div><div className="stat-foot">Last detected 2 minutes ago</div></div>
+          <div className="stat-card"><div className="stat-top"><span>SIMULATED ELEPHANTS</span><div className="stat-icon amber"><Waves size={17}/></div></div><div className="stat-value">5 <span className="activity-status"><i/>Roaming</span></div><div className="stat-foot">Independent paths · moving continuously</div></div>
           <div className="stat-card"><div className="stat-top"><span>RESPONSE TEAMS</span><div className="stat-icon blue"><Shield size={17}/></div></div><div className="stat-value">2 <span className="team-status">On patrol</span></div><div className="stat-foot">Team 02 · East checkpoint</div></div>
         </div>
         <div className="section-heading"><div><h2>Village activity</h2><p>Live overview of your community and surrounding area</p></div><div className="map-actions"><button className={`simulation-pill ${running?'sim-running':''}`}><span/>{running?'Simulation running':'Simulation paused'}</button><button className="pause-btn" onClick={()=>setRunning(!running)}>{running?<><Pause size={15}/> Pause</>:<><Play size={15}/> Resume</>}</button></div></div>
@@ -137,7 +173,7 @@ function App() {
           </section>
           <section className="panel community-panel"><div className="panel-header"><div><h3>Community contacts</h3><p>People keeping Kaveri safe</p></div><button className="text-link" onClick={()=>navigateTo('community','.community-panel')}>128 members <span>→</span></button></div><div className="people-list">{people.slice(0,3).map(p=><div className="person-row" key={p.initials}><div className={`avatar ${p.color}`}>{p.initials}</div><div className="person-copy"><strong>{p.name}</strong><span>{p.role}</span></div><span className="person-online"><i/>Active</span></div>)}</div></section>
         </div>
-        <section className="sms-card"><div className="sms-icon"><Smartphone size={20}/></div><div className="sms-main"><div className="sms-heading"><div><h3>Send a test SMS</h3><p>Try an alert on your phone to see how it reaches your community.</p></div><span className={`mode-pill ${smsMode}`}><i/>{smsMode==='live'?'LIVE SMS':'DEMO MODE'}</span></div><form className="sms-form" onSubmit={sendSms}><label className="phone-field"><span>PHONE NUMBER</span><div className="phone-input"><span className="country-code">🇮🇳 +91</span><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="98765 43210" inputMode="tel" aria-label="Phone number" required/><span className="input-hint">10-digit Indian mobile number</span></div></label><button className="send-btn" disabled={smsBusy}>{smsBusy?'Sending…':<><MessageSquareText size={16}/> Send test SMS</>}</button></form>{smsState&&<div className={`sms-result ${smsState.includes('successfully')||smsState.includes('queued')?'ok':'error'}`}>{smsState}</div>}<div className="sms-foot"><ShieldCheck size={14}/>{smsMode==='live'?'Live SMS is enabled. Only message recipients who have opted in.':'Demo mode: no real SMS is sent. Configure Twilio to enable delivery.'}</div></div></section>
+        <section className="sms-card"><div className="sms-icon"><Smartphone size={20}/></div><div className="sms-main"><div className="sms-heading"><div><h3>Send a test SMS</h3><p>Try an alert on your phone to see how it reaches your community.</p></div><span className={`mode-pill ${smsMode}`}><i/>{smsMode==='live'?'LIVE SMS':'DEMO MODE'}</span></div><form className="sms-form" onSubmit={sendSms}><label className="phone-field"><span>PHONE NUMBER</span><div className="phone-input"><span className="country-code">{phone.trim().startsWith('+')?'🌐 Intl':'🇮🇳 +91'}</span><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="98765 43210" inputMode="tel" aria-label="Phone number" required/><span className="input-hint">10-digit Indian number or +country code</span></div></label><button className="send-btn" disabled={smsBusy}>{smsBusy?'Sending…':<><MessageSquareText size={16}/> Send test SMS</>}</button></form>{smsState&&<div className={`sms-result ${smsState.includes('successfully')||smsState.includes('queued')?'ok':'error'}`}>{smsState}</div>}<div className="sms-foot"><ShieldCheck size={14}/>{smsMode==='live'?'Live SMS is enabled. Only message recipients who have opted in.':smsMissing.length?`Demo mode: server cannot see ${smsMissing.join(', ')}. Add them in the server environment and restart/redeploy.`:'Demo mode: no real SMS is sent until the server is configured.'}</div></div></section>
         <footer className="footer"><span>MaMothy village safety simulator <span className="footer-sep">·</span> Demo environment</span><span><span className="footer-green"/>All systems operational</span></footer>
       </section>
     </main>
