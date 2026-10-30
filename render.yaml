@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: mamothy-village-demo
+    runtime: node
+    plan: free
+    region: singapore
+    branch: arena/64bdecb9-mamothy-demo
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production

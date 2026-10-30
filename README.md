@@ -11,6 +11,10 @@ npm run dev
 
 Open the Vite URL shown in the terminal. The Vite client runs on port 5173 and proxies `/api` requests to the Express API on port 3001. The map and 128-member audience are demo data. The broadcast action uses server-sent events to reach every currently connected demo browser session, updates the activity feed, and shows a browser notification where permission is granted. It does not contact a real village user directory or emergency service.
 
+## Deploy on Render
+
+The repository includes `render.yaml` for a Singapore-region Render web service. In Render, choose **New → Blueprint**, connect this GitHub repository and the `arena/64bdecb9-mamothy-demo` branch, then apply the blueprint. Render runs `npm ci && npm run build`, starts `npm start`, and uses `/api/status` as its health check. The first deployment stays in demo SMS mode. Do not add Twilio credentials to a public service until the SMS endpoint has authentication and rate limiting.
+
 ## SMS behavior
 
 SMS is **demo-only by default**: the API validates the number and message, then returns a local queue confirmation without contacting a mobile network. For real delivery, create/configure a Twilio account, copy `.env.example` to `.env`, and fill in the three Twilio values in that private file. The server loads `.env` automatically:
