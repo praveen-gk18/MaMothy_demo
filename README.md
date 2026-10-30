@@ -13,7 +13,7 @@ Open the Vite URL shown in the terminal. The Vite client runs on port 5173 and p
 
 ## Deploy on Render
 
-The repository includes `render.yaml` for a Singapore-region Render web service. In Render, choose **New → Blueprint**, connect this GitHub repository and the `arena/64bdecb9-mamothy-demo` branch, then apply the blueprint. Render runs `npm ci && npm run build`, starts `npm start`, and uses `/api/status` as its health check. The first deployment stays in demo SMS mode. Do not add Twilio credentials to a public service until the SMS endpoint has authentication and rate limiting.
+The repository includes `render.yaml` for a Singapore-region Render web service. In Render, choose **New → Blueprint**, connect this GitHub repository and the `arena/5be8b11c-mamothy-demo` branch, then apply the blueprint. Render runs `npm ci && npm run build`, starts `npm start`, and uses `/api/status` as its health check. The first deployment stays in demo SMS mode. Do not add Twilio credentials to a public service until the SMS endpoint has authentication and rate limiting.
 
 ## SMS behavior
 

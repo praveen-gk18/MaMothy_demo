@@ -29,7 +29,15 @@ app.post('/api/alerts', (req, res) => {
 });
 
 app.get('/api/status', (_req, res) => {
-  res.json({ mode: process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER ? 'live' : 'demo' });
+  const values = {
+    TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID?.trim(),
+    TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN?.trim(),
+    TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER?.trim()
+  };
+  const missing = Object.entries(values)
+    .filter(([, value]) => !value || /X{4,}|your_|placeholder|\.\.\./i.test(value))
+    .map(([key]) => key);
+  res.json({ mode: missing.length ? 'demo' : 'live', missing });
 });
 
 app.post('/api/sms', async (req, res) => {
@@ -50,7 +58,7 @@ app.post('/api/sms', async (req, res) => {
       method: 'POST', headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body
     });
     const data = await response.json();
-    if (!response.ok) return res.status(502).json({ error: data.message || 'SMS provider rejected the request.' });
+    if (!response.ok) return res.status(502).json({ error: data.code ? `${data.message || 'Twilio rejected the request.'} (Twilio error ${data.code})` : data.message || 'SMS provider rejected the request.' });
     return res.json({ mode: 'live', sid: data.sid, message: 'SMS sent through Twilio.' });
   } catch {
     return res.status(502).json({ error: 'Could not reach the SMS provider. Please try again.' });
