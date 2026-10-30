@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    branch: arena/f6e117f3-mamothy-demo
+    branch: arena/f1b67c16-mamothy-demo
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/status

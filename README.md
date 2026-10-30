@@ -13,14 +13,12 @@ Open the Vite URL shown in the terminal. The Vite client runs on port 5173 and p
 
 ## Deploy on Render
 
-The repository includes `render.yaml` for a Singapore-region Render web service. In Render, choose **New → Blueprint**, connect this GitHub repository and the `arena/f6e117f3-mamothy-demo` branch, then apply the blueprint. Render runs `npm ci && npm run build`, starts `npm start`, and uses `/api/status` as its health check. The first deployment stays in demo SMS mode. Do not add Twilio credentials to a public service until the SMS endpoint has authentication and rate limiting.
+The repository includes `render.yaml` for a Singapore-region Render web service. In Render, choose **New → Blueprint**, connect this GitHub repository and the `arena/f1b67c16-mamothy-demo` branch, then apply the blueprint. Render runs `npm ci && npm run build`, starts `npm start`, and uses `/api/status` as its health check. The first deployment stays in demo SMS mode.
 
-## SMS behavior
+## SMS behavior (MSG91)
 
-SMS is **demo-only until Twilio credentials are configured**. Copy `.env.example` to `.env`, add your Account SID, Auth Token, and the Twilio trial number, then restart the server. For Render, set the same variables in the service's Environment settings.
+SMS remains **demo-only until MSG91 is configured**. Create a DLT-approved SMS content template and map it to an MSG91 SMS Flow. Copy `.env.example` to `.env` and set `MSG91_AUTH_KEY` and `MSG91_TEMPLATE_ID` (the Flow/template ID from MSG91). For Render, add these two keys under the service's **Environment** settings. The API uses MSG91's [Flow Send SMS endpoint](https://docs.msg91.com/sms/send-sms); the DLT-approved Flow controls the message text, so the app does not send arbitrary custom SMS content. See MSG91's [template mapping guidance](https://msg91.com/help/dlt-registration-in-india/map-sms-content-template-on-msg91-api-panel).
 
-Trial mode is on by default (`TWILIO_TRIAL_MODE=true`). It sends Twilio's fixed `sms_event_notifications` trial template rather than the custom MaMothy text. Twilio's trial SMS flow is limited to verified U.S. (`+1`) recipients; an Indian `+91` destination requires upgrading the Twilio account. Verify the test recipient in Twilio first. See [Twilio trial SMS instructions](https://www.twilio.com/docs/usage/trials/try-out-sms).
-
-After upgrading, set `TWILIO_TRIAL_MODE=false` to send the custom alert body. SMS can incur charges; message only recipients who consented. The public SMS endpoint currently has no authentication or rate limit, so secure it before enabling paid credentials on a public service. Never commit or share credentials.
+Enter the recipient in international format, such as `+919876543210`. The API sends India-format digits to MSG91 and limits repeat tests to five sends per recipient/IP per hour. MSG91 accepting a request is not proof of delivery; check SMS Logs. SMS can incur charges, and the public endpoint still has no authentication. Secure it before putting live MSG91 credentials on a public service. Never commit or share credentials.
 
 For a production build, run `npm run build`, then start the API/static server with `NODE_ENV=production npm start`.
