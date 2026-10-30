@@ -1,0 +1,150 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { Activity, AlertTriangle, Bell, Check, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, LocateFixed, MapPin, Menu, MessageSquareText, Pause, Play, Radio, Shield, ShieldCheck, Siren, Smartphone, Users, Waves, X } from 'lucide-react';
+import './style.css';
+
+const initialAlerts = [
+  { title: 'Elephant activity detected', detail: 'Movement near the eastern forest boundary', time: '2 min ago', type: 'warning' },
+  { title: 'Patrol team acknowledged', detail: 'Field unit 02 is moving to checkpoint C', time: '18 min ago', type: 'success' },
+  { title: 'Perimeter sensor online', detail: 'East watchtower · Signal strong', time: '41 min ago', type: 'normal' }
+];
+const people = [
+  { name: 'Lakshmi Devi', role: 'Village coordinator', initials: 'LD', color: 'lavender' },
+  { name: 'Arun Kumar', role: 'Forest patrol', initials: 'AK', color: 'peach' },
+  { name: 'Meena Rani', role: 'Community volunteer', initials: 'MR', color: 'mint' },
+  { name: 'Ravi Shankar', role: 'Village resident', initials: 'RS', color: 'blue' }
+];
+
+function VillageMap({ running, alertLevel, setAlertLevel }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => { if (!running) return; const id = setInterval(() => setTick(t => t + 1), 1200); return () => clearInterval(id); }, [running]);
+  const x = 681 - (tick % 9) * 10;
+  const y = 184 + Math.sin(tick / 1.5) * 15;
+  return <div className="map-wrap">
+    <div className="map-toolbar"><div className="map-title"><span className="live-dot"/><span>LIVE SIMULATION</span><span className="map-time">09:42:16 IST</span></div><button className="icon-btn map-locate" aria-label="Recenter map"><LocateFixed size={16}/></button></div>
+    <svg className="village-map" viewBox="0 0 820 460" role="img" aria-label="Illustrated village map showing forest, village and elephant activity">
+      <defs>
+        <pattern id="grass" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="3" cy="5" r="1" fill="#dce8d3"/><circle cx="16" cy="18" r="1" fill="#dce8d3"/></pattern>
+        <pattern id="forest" width="31" height="27" patternUnits="userSpaceOnUse"><circle cx="9" cy="11" r="8" fill="#2f654b"/><circle cx="20" cy="18" r="9" fill="#397353"/><circle cx="23" cy="4" r="7" fill="#477d5a"/></pattern>
+        <filter id="soft"><feGaussianBlur stdDeviation="5"/></filter>
+      </defs>
+      <rect width="820" height="460" fill="#edf3e8"/><rect width="820" height="460" fill="url(#grass)"/>
+      <path d="M580 0H820V460H647c24-51 13-89 35-130 17-31 13-64-8-91-30-40-11-83-42-113-26-26-23-66-52-126Z" fill="#c7d8b7"/>
+      <path d="M610 0H820V460H674c31-59 20-89 39-128 17-33 5-60-13-90-22-36-5-79-37-109-28-26-27-73-53-133Z" fill="url(#forest)" opacity=".94"/>
+      <path d="M0 359C98 337 150 381 241 359s136-18 218 2 111 18 163-1" fill="none" stroke="#bbd8dc" strokeWidth="14" opacity=".8"/><path d="M0 359C98 337 150 381 241 359s136-18 218 2 111 18 163-1" fill="none" stroke="#dff0ec" strokeWidth="5"/>
+      <path d="M89 0c10 70 5 123 45 164 37 39 31 77 19 119-12 40 12 79 41 120M320 0c18 66 7 93 35 137 23 35 18 74 4 108-15 37-5 99 30 144M0 262c83 9 130 3 192 21s125 32 187 11 126-20 214-6" fill="none" stroke="#fff8e9" strokeWidth="9" strokeLinecap="round"/><path d="M89 0c10 70 5 123 45 164 37 39 31 77 19 119-12 40 12 79 41 120M320 0c18 66 7 93 35 137 23 35 18 74 4 108-15 37-5 99 30 144M0 262c83 9 130 3 192 21s125 32 187 11 126-20 214-6" fill="none" stroke="#e9dabc" strokeWidth="1.5" strokeDasharray="4 6"/>
+      {/* home clusters */}
+      {[[100,120],[142,139],[187,111],[226,154],[100,202],[148,216],[207,197],[271,119],[307,162],[370,108],[395,176],[269,245],[334,235],[412,252],[173,295],[252,316],[363,309],[450,174],[462,221]].map(([hx,hy],i)=><g key={i} transform={`translate(${hx} ${hy})`}><rect x="-11" y="-5" width="22" height="15" rx="2" fill={i%3===0?'#d48d69':'#e4ae7d'} stroke="#fff7e8" strokeWidth="2"/><path d="M-14-5 0-16 14-5Z" fill="#805448"/><rect x="-2" y="2" width="5" height="8" fill="#fff1d7"/></g>)}
+      {/* fields */}
+      <path d="M25 57h155v29H25zM230 335h166v23H230zM406 52h122v44H406z" fill="#dbe6b8" stroke="#c7d29f" strokeWidth="2"/><path d="M35 64h135M35 73h135M240 343h145M416 63h100M416 76h100" stroke="#c4d19d" strokeWidth="2"/>
+      {/* sensor posts */}
+      {[[536,108,'A'],[548,300,'B'],[476,58,'C']].map(([sx,sy,label])=><g key={label}><circle cx={sx} cy={sy} r="13" fill="#fff" stroke="#71a98a" strokeWidth="2"/><path d={`M${sx} ${sy-5}v10m-4-5h8`} stroke="#377e5a" strokeWidth="2"/><text x={sx+17} y={sy+4} className="sensor-label">SENSOR {label}</text></g>)}
+      <text x="657" y="45" className="map-region">EASTERN FOREST</text><text x="657" y="63" className="map-small">KALAKAD–MUNDANTHURAI BUFFER</text>
+      <text x="222" y="185" className="map-region village-label">KAVERI VILLAGE</text><text x="222" y="201" className="map-small">RESIDENTIAL ZONE · 128 HOMES</text>
+      <text x="72" y="44" className="map-small">NORTH FIELDS</text><text x="695" y="349" className="map-small">FOREST EDGE</text>
+      {/* movement trail */}
+      <path d="M706 145C680 160 705 183 681 195S656 226 650 244" fill="none" stroke="#e6a344" strokeWidth="3" strokeDasharray="5 6" strokeLinecap="round" opacity=".7"/>
+      <circle cx={x} cy={y} r="34" fill="#edac47" opacity=".14"/><circle cx={x} cy={y} r="25" fill="#edac47" opacity=".12" filter="url(#soft)"/>
+      <g transform={`translate(${x} ${y})`}><circle r="19" fill="#fff" stroke="#e5a441" strokeWidth="2.5"/><text textAnchor="middle" dominantBaseline="central" fontSize="21">🐘</text></g>
+      <g transform={`translate(${x+25} ${y-24})`}><rect width="74" height="22" rx="11" fill="#fff"/><circle cx="11" cy="11" r="4" fill="#e89d35"/><text x="21" y="15" className="elephant-tag">ELEPHANT</text></g>
+      {/* patrol */}<g transform="translate(349 265)"><circle r="13" fill="#fff" stroke="#5d89bb" strokeWidth="2"/><path d="M-4 3l4-8 4 8M-6 5h12" fill="none" stroke="#4f7ead" strokeWidth="1.8"/></g><text x="366" y="270" className="map-small">PATROL 02</text>
+      {alertLevel && <g><circle cx="645" cy="220" r="45" fill="#e77b64" opacity=".12"/><circle cx="645" cy="220" r="30" fill="none" stroke="#dd765d" strokeWidth="2" strokeDasharray="5 5"/></g>}
+    </svg>
+    <div className="map-legend"><span><i className="legend-dot elephant-dot"/>Elephant location</span><span><i className="legend-dot sensor-dot"/>Sensor</span><span><i className="legend-dot patrol-dot"/>Patrol unit</span><span><i className="legend-line"/>Village boundary</span></div>
+    <div className="map-footer"><span><Crosshair size={14}/> Last collar packet · 2 min ago</span><span>Map data is simulated for demo purposes</span></div>
+  </div>
+}
+
+function App() {
+  const [running, setRunning] = useState(true);
+  const [alertLevel, setAlertLevel] = useState(false);
+  const [alerts, setAlerts] = useState(initialAlerts);
+  const [toast, setToast] = useState('');
+  const [phone, setPhone] = useState('');
+  const [smsState, setSmsState] = useState('');
+  const [smsBusy, setSmsBusy] = useState(false);
+  const [smsMode, setSmsMode] = useState('demo');
+  const [tab, setTab] = useState('overview');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [now, setNow] = useState(new Date());
+  useEffect(() => { const i=setInterval(()=>setNow(new Date()),1000); return ()=>clearInterval(i); }, []);
+  useEffect(() => { fetch('/api/status').then(r=>r.json()).then(d=>setSmsMode(d.mode)).catch(()=>{}); }, []);
+  useEffect(() => {
+    const events = new EventSource('/api/events');
+    events.onmessage = event => {
+      try {
+        const alert = JSON.parse(event.data);
+        setAlertLevel(true); setAlerts(items=>[alert,...items]);
+        setToast(`Alert delivered to ${alert.recipients} connected demo session${alert.recipients===1?'':'s'}.`);
+        if ('Notification' in window && Notification.permission === 'granted') new Notification('MaMothy safety alert',{body:alert.detail});
+      } catch { /* Ignore malformed demo events. */ }
+    };
+    return () => events.close();
+  }, []);
+  useEffect(() => { if(!toast)return; const t=setTimeout(()=>setToast(''),4000); return ()=>clearTimeout(t); }, [toast]);
+  const clock = useMemo(()=>now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}),[now]);
+
+  function navigateTo(name, selector) {
+    setTab(name); setMenuOpen(false);
+    if (name === 'overview') window.scrollTo({top: 0, behavior: 'smooth'});
+    else requestAnimationFrame(() => document.querySelector(selector)?.scrollIntoView({behavior: 'smooth', block: 'center'}));
+  }
+  async function broadcast() {
+    if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+    try {
+      const response=await fetch('/api/alerts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({detail:'Elephant sighting · Kaveri east boundary'})});
+      if(!response.ok) throw new Error('Could not broadcast the alert.');
+      const result=await response.json();
+      setToast(`Demo alert sent to ${result.recipients} connected session${result.recipients===1?'':'s'} · 128-member audience is simulated.`);
+    } catch { setToast('Alert broadcast failed. Check that the demo server is running.'); }
+  }
+  async function sendSms(e) {
+    e.preventDefault(); setSmsBusy(true); setSmsState('');
+    try {
+      const normalizedPhone=`+91${phone.replace(/\D/g,'')}`;
+      const res=await fetch('/api/sms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:normalizedPhone,message:'MaMothy village safety alert: Elephant sighting near Kaveri east boundary. Please stay indoors and avoid the forest edge.'})});
+      const data=await res.json(); if(!res.ok)throw new Error(data.error||'Unable to send SMS.');
+      setSmsState(data.mode==='live'?'SMS sent successfully.':'Demo SMS queued — no message was sent to a mobile network.');
+      setSmsMode(data.mode); setPhone('');
+      setAlerts(a=>[{title:data.mode==='live'?'SMS alert sent':'Demo SMS queued',detail:`${data.mode==='live'?'Delivered to':'Preview for'} ${normalizedPhone}`,time:'Just now',type:'success'},...a]);
+    } catch(err) {setSmsState(err.message)} finally {setSmsBusy(false)}
+  }
+  return <div className="app-shell">
+    <aside className={`sidebar ${menuOpen?'sidebar-open':''}`}>
+      <div className="brand"><div className="brand-mark"><span>m</span></div><div><strong>MaMothy</strong><small>VILLAGE SAFETY</small></div><button className="mobile-close" onClick={()=>setMenuOpen(false)}><X size={19}/></button></div>
+      <div className="workspace"><div className="workspace-icon">KV</div><div><strong>Kaveri Village</strong><span>Community dashboard</span></div><ChevronDown size={15}/></div>
+      <div className="nav-label">WORKSPACE</div>
+      <nav className="nav"><button onClick={()=>navigateTo('overview')} className={tab==='overview'?'active':''}><Activity size={18}/>Overview</button><button onClick={()=>navigateTo('map','.map-card')} className={tab==='map'?'active':''}><MapPin size={18}/>Live map<span className="nav-live"/></button><button onClick={()=>navigateTo('alerts','.alert-panel')} className={tab==='alerts'?'active':''}><Bell size={18}/>Alerts<span className="nav-count">3</span></button><button onClick={()=>navigateTo('community','.community-panel')} className={tab==='community'?'active':''}><Users size={18}/>Community</button></nav>
+      <div className="sidebar-spacer"/><div className="sidebar-status"><div className="status-icon"><ShieldCheck size={19}/></div><div><strong>System protected</strong><span>All sensors operational</span></div><span className="status-green"/></div>
+      <div className="profile"><div className="avatar avatar-user">PK</div><div><strong>Praveen Kumar</strong><span>Village administrator</span></div><MoreIcon/></div>
+    </aside>
+    {menuOpen&&<div className="scrim" onClick={()=>setMenuOpen(false)}/>}
+    <main className="main-area">
+      <header className="topbar"><button className="menu-btn" onClick={()=>setMenuOpen(true)}><Menu size={20}/></button><div className="breadcrumb">Kaveri Village <span>/</span> <b>{tab==='overview'?'Overview':tab==='map'?'Live map':tab==='alerts'?'Alerts':'Community'}</b></div><div className="topbar-right"><span className="top-clock"><Clock3 size={15}/>{clock} IST</span><button className="icon-btn bell-button" onClick={()=>navigateTo('alerts','.alert-panel')} aria-label="View alerts"><Bell size={18}/><i/></button><div className="avatar avatar-user top-avatar">PK</div></div></header>
+      <section className="content">
+        <div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-mark"/>FIELD OPERATIONS</div><h1>{tab==='overview'?'Village overview':tab==='map'?'Live village map':tab==='alerts'?'Community alerts':'Community contacts'}</h1><p>{tab==='alerts'?'Review and broadcast important village safety updates.':tab==='community'?'Meet the people keeping Kaveri village safe.':'Monitor wildlife activity and keep your community safe.'}</p></div><div className="heading-actions"><span className="date-pill"><span className="date-dot"/>{now.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</span><button className="help-btn"><CircleHelp size={16}/> Help</button></div></div>
+        <div className="stats-grid">
+          <div className="stat-card"><div className="stat-top"><span>COMMUNITY MEMBERS</span><div className="stat-icon purple"><Users size={17}/></div></div><div className="stat-value">128 <span className="stat-change">+4 this week</span></div><div className="stat-foot">Registered for safety alerts</div></div>
+          <div className="stat-card"><div className="stat-top"><span>LORA GATEWAY</span><div className="stat-icon green"><Radio size={17}/></div></div><div className="stat-value">1<span className="stat-total"> / 1</span><span className="online-pill"><i/>Online</span></div><div className="stat-foot">Collar telemetry · 2 min ago</div></div>
+          <div className="stat-card"><div className="stat-top"><span>ELEPHANT ACTIVITY</span><div className="stat-icon amber"><Waves size={17}/></div></div><div className="stat-value">1 <span className="activity-status"><i/>Near boundary</span></div><div className="stat-foot">Last detected 2 minutes ago</div></div>
+          <div className="stat-card"><div className="stat-top"><span>RESPONSE TEAMS</span><div className="stat-icon blue"><Shield size={17}/></div></div><div className="stat-value">2 <span className="team-status">On patrol</span></div><div className="stat-foot">Team 02 · East checkpoint</div></div>
+        </div>
+        <div className="section-heading"><div><h2>Village activity</h2><p>Live overview of your community and surrounding area</p></div><div className="map-actions"><button className={`simulation-pill ${running?'sim-running':''}`}><span/>{running?'Simulation running':'Simulation paused'}</button><button className="pause-btn" onClick={()=>setRunning(!running)}>{running?<><Pause size={15}/> Pause</>:<><Play size={15}/> Resume</>}</button></div></div>
+        <div className="map-card"><VillageMap running={running} alertLevel={alertLevel} setAlertLevel={setAlertLevel}/></div>
+        <div className="lower-grid">
+          <section className="panel alert-panel"><div className="panel-header"><div><h3>Recent alerts</h3><p>Latest activity across your village</p></div><button className="text-link" onClick={()=>navigateTo('alerts','.alert-panel')}>View all <span>→</span></button></div>
+            <div className="alert-list">{alerts.slice(0,3).map((a,i)=><div className="alert-row" key={`${a.title}-${i}`}><div className={`alert-symbol ${a.type}`}>{a.type==='warning'?<AlertTriangle size={16}/>:a.type==='success'?<Check size={16}/>:<Radio size={16}/>}</div><div className="alert-copy"><strong>{a.title}</strong><span>{a.detail}</span></div><time>{a.time}</time></div>)}</div>
+          </section>
+          <section className="panel community-panel"><div className="panel-header"><div><h3>Community contacts</h3><p>People keeping Kaveri safe</p></div><button className="text-link" onClick={()=>navigateTo('community','.community-panel')}>128 members <span>→</span></button></div><div className="people-list">{people.slice(0,3).map(p=><div className="person-row" key={p.initials}><div className={`avatar ${p.color}`}>{p.initials}</div><div className="person-copy"><strong>{p.name}</strong><span>{p.role}</span></div><span className="person-online"><i/>Active</span></div>)}</div></section>
+        </div>
+        <section className="sms-card"><div className="sms-icon"><Smartphone size={20}/></div><div className="sms-main"><div className="sms-heading"><div><h3>Send a test SMS</h3><p>Try an alert on your phone to see how it reaches your community.</p></div><span className={`mode-pill ${smsMode}`}><i/>{smsMode==='live'?'LIVE SMS':'DEMO MODE'}</span></div><form className="sms-form" onSubmit={sendSms}><label className="phone-field"><span>PHONE NUMBER</span><div className="phone-input"><span className="country-code">🇮🇳 +91</span><input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="98765 43210" inputMode="tel" aria-label="Phone number" required/><span className="input-hint">10-digit Indian mobile number</span></div></label><button className="send-btn" disabled={smsBusy}>{smsBusy?'Sending…':<><MessageSquareText size={16}/> Send test SMS</>}</button></form>{smsState&&<div className={`sms-result ${smsState.includes('successfully')||smsState.includes('queued')?'ok':'error'}`}>{smsState}</div>}<div className="sms-foot"><ShieldCheck size={14}/>{smsMode==='live'?'Live SMS is enabled. Only message recipients who have opted in.':'Demo mode: no real SMS is sent. Configure Twilio to enable delivery.'}</div></div></section>
+        <footer className="footer"><span>MaMothy village safety simulator <span className="footer-sep">·</span> Demo environment</span><span><span className="footer-green"/>All systems operational</span></footer>
+      </section>
+    </main>
+    <button className="broadcast-fab" onClick={broadcast}><Siren size={17}/> Broadcast alert <span>128</span></button>
+    {toast&&<div className="toast"><div className="toast-check"><Check size={16}/></div><div><strong>Alert broadcast</strong><span>{toast}</span></div><button onClick={()=>setToast('')}><X size={16}/></button></div>}
+  </div>
+}
+function MoreIcon(){return <button className="more-btn" aria-label="More options"><span/><span/><span/></button>}
+
+createRoot(document.getElementById('root')).render(<App/>);
