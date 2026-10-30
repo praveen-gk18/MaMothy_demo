@@ -28,7 +28,7 @@ app.post('/api/alerts', (req, res) => {
   res.json({ ok: true, recipients: eventClients.size, audience: 128 });
 });
 
-app.get('/api/status', (_req, res) => {
+function getTwilioConfig() {
   const values = {
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID?.trim(),
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN?.trim(),
@@ -37,7 +37,14 @@ app.get('/api/status', (_req, res) => {
   const missing = Object.entries(values)
     .filter(([, value]) => !value || /X{4,}|your_|placeholder|\.\.\./i.test(value))
     .map(([key]) => key);
-  res.json({ mode: missing.length ? 'demo' : 'live', missing });
+  // Trial-compatible templates are the safe default. Set TWILIO_TRIAL_MODE=false only after upgrading.
+  const trialMode = (process.env.TWILIO_TRIAL_MODE || 'true').toLowerCase() !== 'false';
+  return { ...values, missing, trialMode, mode: missing.length ? 'demo' : trialMode ? 'trial' : 'live' };
+}
+
+app.get('/api/status', (_req, res) => {
+  const { missing, mode } = getTwilioConfig();
+  res.json({ mode, missing });
 });
 
 app.post('/api/sms', async (req, res) => {
@@ -48,18 +55,28 @@ app.post('/api/sms', async (req, res) => {
   if (typeof message !== 'string' || message.trim().length < 3 || message.length > 300) {
     return res.status(400).json({ error: 'Message must be between 3 and 300 characters.' });
   }
-  const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token, TWILIO_FROM_NUMBER: from } = process.env;
-  if (!sid || !token || !from) {
-    return res.json({ mode: 'demo', message: 'Demo SMS queued locally. Add Twilio environment variables to send a real SMS.' });
+  const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: token, TWILIO_FROM_NUMBER: from, missing, trialMode, mode } = getTwilioConfig();
+  if (missing.length) {
+    return res.json({ mode: 'demo', message: `Demo SMS queued locally. Missing server settings: ${missing.join(', ')}.` });
+  }
+  if (trialMode && !phone.startsWith('+1')) {
+    return res.status(400).json({ error: 'Twilio trial SMS is limited to verified U.S. numbers (+1). Verify a U.S. recipient in Twilio, or upgrade your account to message an Indian +91 number.' });
   }
   try {
-    const body = new URLSearchParams({ To: phone, From: from, Body: message.trim() });
+    const template = 'sms_event_notifications';
+    const body = new URLSearchParams({ To: phone, From: from, Body: trialMode ? template : message.trim() });
     const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: 'POST', headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body
     });
     const data = await response.json();
     if (!response.ok) return res.status(502).json({ error: data.code ? `${data.message || 'Twilio rejected the request.'} (Twilio error ${data.code})` : data.message || 'SMS provider rejected the request.' });
-    return res.json({ mode: 'live', sid: data.sid, message: 'SMS sent through Twilio.' });
+    return res.json({
+      mode,
+      sid: data.sid,
+      message: trialMode
+        ? 'Twilio accepted the predefined event-notification template. Check Twilio Messaging Logs for delivery status.'
+        : 'Twilio accepted the custom SMS. Check Messaging Logs for delivery status.'
+    });
   } catch {
     return res.status(502).json({ error: 'Could not reach the SMS provider. Please try again.' });
   }
