@@ -14,7 +14,8 @@ app.get('/api/events', (req, res) => {
   res.flushHeaders();
   res.write('retry: 3000\n\n');
   eventClients.add(res);
-  req.on('close', () => eventClients.delete(res));
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25000);
+  req.on('close', () => { clearInterval(heartbeat); eventClients.delete(res); });
 });
 
 app.post('/api/alerts', (req, res) => {
